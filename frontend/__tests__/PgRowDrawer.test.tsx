@@ -8,6 +8,46 @@ const columns = [
 ];
 
 describe('PgRowDrawer', () => {
+  it.each([
+    { items: [{ value: 3 }], enabled: true },
+    [{ value: 3 }, { value: 5 }],
+    'visible',
+    '',
+    3,
+    false,
+    null,
+  ].map((value) => ({ value })))('preserves JSON when editing an enum: %j', ({ value }) => {
+    const onSave = vi.fn();
+    const cols = [
+      columns[0],
+      { name: 'status', type: 'USER-DEFINED', nullable: false },
+      { name: 'meta', type: 'jsonb', nullable: true },
+    ];
+    render(
+      <PgRowDrawer columns={cols} pk={['id']} mode="edit"
+        row={{ id: 1, status: 'pending', meta: value }} onClose={() => {}} onSave={onSave} onDelete={() => {}} />,
+    );
+    expect(screen.getByLabelText('meta')).toHaveValue(
+      value === null ? '' : JSON.stringify(value, null, 2),
+    );
+    fireEvent.change(screen.getByLabelText('status'), { target: { value: 'approved' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onSave).toHaveBeenCalledWith({ status: 'approved', meta: value });
+  });
+
+  it('rejects invalid JSON before saving', () => {
+    const onSave = vi.fn();
+    const cols = [columns[0], { name: 'meta', type: 'jsonb', nullable: true }];
+    render(
+      <PgRowDrawer columns={cols} pk={['id']} mode="edit"
+        row={{ id: 1, meta: {} }} onClose={() => {}} onSave={onSave} onDelete={() => {}} />,
+    );
+    fireEvent.change(screen.getByLabelText('meta'), { target: { value: '[object Object]' } });
+    fireEvent.click(screen.getByText('Save'));
+    expect(onSave).not.toHaveBeenCalled();
+    expect(screen.getByText('meta: invalid JSON')).toBeInTheDocument();
+  });
+
   it('parses a json column value on save', () => {
     const onSave = vi.fn();
     const cols = [

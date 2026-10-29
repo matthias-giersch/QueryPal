@@ -48,7 +48,7 @@ const PgRowDrawer: React.FC<{
   const [form, setForm] = useState<Record<string, string>>(() =>
     Object.fromEntries(editable.map((c) => {
       const v = row?.[c.name];
-      return [c.name, v === null || v === undefined ? '' : String(v)];
+      return [c.name, v === null || v === undefined ? '' : isJson(c.type) ? JSON.stringify(v, null, 2) : String(v)];
     })));
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
@@ -60,7 +60,10 @@ const PgRowDrawer: React.FC<{
     if (isBool(c.type)) return raw === 'true';
     if (isArray(c.type)) return parseArray(raw);
     if (isNumber(c.type)) { const n = Number(raw); return Number.isNaN(n) ? raw : n; }
-    if (isJson(c.type)) { try { return JSON.parse(raw); } catch { return raw; } }
+    if (isJson(c.type)) {
+      try { return JSON.parse(raw); }
+      catch { throw new Error(`${c.name}: invalid JSON`); }
+    }
     return raw;
   };
 
